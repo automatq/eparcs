@@ -28,12 +28,14 @@ ENV PUPPETEER_SKIP_CHROMIUM_DOWNLOAD=true
 WORKDIR /app
 
 COPY package.json package-lock.json ./
-RUN npm ci
+COPY prisma/ prisma/
+COPY prisma.config.ts ./
+RUN npm ci --ignore-scripts
+RUN npx prisma generate
 
 COPY . .
 
-RUN npx prisma generate
-RUN npm run build
+RUN npx next build
 
 EXPOSE 3000
 
