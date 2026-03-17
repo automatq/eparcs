@@ -1,0 +1,50 @@
+{
+  "manifest_version": 3,
+  "name": "Scraped - AI Lead Generation",
+  "version": "0.1.0",
+  "description": "Capture leads from LinkedIn, Google Maps, and Job Boards. AI-powered outreach.",
+  "permissions": [
+    "activeTab",
+    "sidePanel",
+    "storage"
+  ],
+  "host_permissions": [
+    "https://www.linkedin.com/*",
+    "https://www.google.com/maps/*",
+    "https://maps.google.com/*",
+    "https://www.indeed.com/*"
+  ],
+  "background": {
+    "service_worker": "background/service-worker.js"
+  },
+  "content_scripts": [
+    {
+      "matches": ["https://www.linkedin.com/in/*", "https://www.linkedin.com/search/*"],
+      "js": ["content/site-detector.js"]
+    },
+    {
+      "matches": ["https://www.google.com/maps/*", "https://maps.google.com/*"],
+      "js": ["content/site-detector.js"]
+    },
+    {
+      "matches": ["https://www.indeed.com/viewjob*", "https://www.indeed.com/jobs*"],
+      "js": ["content/site-detector.js"]
+    },
+    {
+      "matches": ["https://www.linkedin.com/jobs/*"],
+      "js": ["content/site-detector.js"]
+    }
+  ],
+  "side_panel": {
+    "default_path": "sidepanel/index.html"
+  },
+  "action": {
+    "default_popup": "popup/index.html",
+    "default_title": "Scraped"
+  },
+  "icons": {
+    "16": "icons/icon16.png",
+    "48": "icons/icon48.png",
+    "128": "icons/icon128.png"
+  }
+}

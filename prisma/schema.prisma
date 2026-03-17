@@ -1,0 +1,591 @@
+generator client {
+  provider        = "prisma-client-js"
+  output          = "../node_modules/.prisma/client"
+  previewFeatures = ["driverAdapters"]
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+// ── Lead Management ──
+
+model Lead {
+  id          String   @id @default(cuid())
+  /// Person name or business name
+  name        String
+  title       String?
+  company     String?
+  companyDomain String?
+  industry    String?
+  location    String?
+  linkedinUrl String?
+  /// Source platform: linkedin, gmaps, jobboard, import, manual
+  source      String   @default("manual")
+  /// Type of lead: person or business
+  leadType    String   @default("person")
+  /// Pipeline stage: new, contacted, replied, meeting, won, lost
+  pipelineStage String @default("new")
+  /// Notes from the user
+  notes       String?
+  /// Enrichment status: pending, complete, failed, none
+  enrichmentStatus String @default("none")
+  /// Clerk user ID of lead owner
+  ownerId     String
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  /// Fit Score: 0-100, how well this lead matches the search ICP
+  fitScore       Int?
+  fitScoreReason String?
+
+  emails           LeadEmail[]
+  phones           LeadPhone[]
+  businessProfile  BusinessProfile?
+  companyProfile   CompanyProfile?
+  automationSignals AutomationSignal[]
+  outreachMessages OutreachMessage[]
+  workspaces       WorkspaceLead[]
+
+  @@index([ownerId])
+  @@index([source])
+  @@index([pipelineStage])
+  @@index([createdAt])
+  @@index([fitScore])
+}
+
+model LeadEmail {
+  id         String   @id @default(cuid())
+  leadId     String
+  lead       Lead     @relation(fields: [leadId], references: [id], onDelete: Cascade)
+  email      String
+  /// Source: hunter, pattern, manual, website-scrape, decision-maker
+  source     String   @default("manual")
+  /// Confidence score 0-100
+  confidence Int      @default(0)
+  verified   Boolean  @default(false)
+  verifiedAt DateTime?
+  /// Person this email belongs to (if found via team page scraping)
+  personName  String?
+  /// Title of the person (CEO, Owner, Manager, etc.)
+  personTitle String?
+  createdAt  DateTime @default(now())
+
+  @@index([leadId])
+  @@index([email])
+}
+
+model LeadPhone {
+  id       String   @id @default(cuid())
+  leadId   String
+  lead     Lead     @relation(fields: [leadId], references: [id], onDelete: Cascade)
+  phone    String
+  source   String   @default("manual")
+  /// Type: main, direct, mobile, fax
+  type     String   @default("main")
+  smsOptIn Boolean  @default(false)
+  smsOptInAt DateTime?
+  /// Person this phone belongs to (if found)
+  personName String?
+  createdAt DateTime @default(now())
+
+  @@index([leadId])
+}
+
+model BusinessProfile {
+  id          String  @id @default(cuid())
+  leadId      String  @unique
+  lead        Lead    @relation(fields: [leadId], references: [id], onDelete: Cascade)
+  phone       String?
+  website     String?
+  address     String?
+  rating      Float?
+  reviewCount Int?
+  category    String?
+  googleMapsUrl String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+
+model CompanyProfile {
+  id               String   @id @default(cuid())
+  leadId           String   @unique
+  lead             Lead     @relation(fields: [leadId], references: [id], onDelete: Cascade)
+  companyName      String?
+  domain           String?
+  employeeCount    Int?
+  /// 1-10, 11-50, 51-200, 201-500, 501-1000, 1001+
+  employeeRange    String?
+  estimatedRevenue Int?
+  revenueConfidence String?
+  foundedYear      Int?
+  industry         String?
+  subIndustry      String?
+  linkedinUrl      String?
+  twitterUrl       String?
+  facebookUrl      String?
+  jobPostingCount  Int?
+  /// JSON: [{title, url, isAutomatable}]
+  hiringSignals    Json?
+  /// JSON: [{title, date, url, summary}]
+  recentNews       Json?
+  /// JSON: ["WordPress", "HubSpot", ...]
+  techStack        Json?
+  enrichedAt       DateTime @default(now())
+}
+
+// ── LinkedIn Campaigns (Dux-Soup style) ──
+
+model LinkedInCampaign {
+  id          String   @id @default(cuid())
+  name        String
+  ownerId     String
+  /// active, paused, completed
+  status      String   @default("active")
+  /// Max actions per day
+  dailyLimit  Int      @default(20)
+  /// Account type: free, premium, sales_navigator, recruiter
+  accountType String   @default("free")
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  steps      LinkedInCampaignStep[]
+  prospects  LinkedInProspect[]
+
+  @@index([ownerId])
+  @@index([status])
+}
+
+model LinkedInCampaignStep {
+  id          String   @id @default(cuid())
+  campaignId  String
+  campaign    LinkedInCampaign @relation(fields: [campaignId], references: [id], onDelete: Cascade)
+  /// Step order
+  order       Int
+  /// Action: visit, connect, message, inmail, endorse, like, follow, tag
+  action      String
+  /// Delay in hours before this step executes
+  delayHours  Int      @default(24)
+  /// Message template (supports _FN_ _CN_ _TITLE_ markers)
+  messageTemplate String?
+  /// Tag to apply (for tag action)
+  tag         String?
+  createdAt   DateTime @default(now())
+
+  @@index([campaignId])
+}
+
+model LinkedInProspect {
+  id          String   @id @default(cuid())
+  campaignId  String
+  campaign    LinkedInCampaign @relation(fields: [campaignId], references: [id], onDelete: Cascade)
+  leadId      String?
+  /// LinkedIn profile URL
+  linkedinUrl String
+  name        String
+  title       String?
+  company     String?
+  /// Funnel stage: enrolled, visited, invited, connected, messaged, responded, qualified_in, qualified_out
+  stage       String   @default("enrolled")
+  /// Current step index in the campaign
+  currentStep Int      @default(0)
+  /// When the next action should fire
+  nextActionAt DateTime?
+  /// Whether this prospect has replied (pauses campaign)
+  hasReplied  Boolean  @default(false)
+  /// Tags applied to this prospect
+  tags        String?
+  /// Notes
+  notes       String?
+  /// Connection status: none, pending, connected
+  connectionStatus String @default("none")
+  enrolledAt  DateTime @default(now())
+  lastActionAt DateTime?
+
+  @@index([campaignId])
+  @@index([stage])
+  @@index([nextActionAt])
+  @@index([linkedinUrl])
+}
+
+model AutomationSignal {
+  id           String  @id @default(cuid())
+  leadId       String
+  lead         Lead    @relation(fields: [leadId], references: [id], onDelete: Cascade)
+  jobTitle     String?
+  jobDescription String?
+  jobUrl       String?
+  /// Signal type: hiring-repetitive-role, slow-response-reviews, manual-process-mention
+  signalType   String
+  /// Strength: low, medium, high
+  signalStrength String @default("medium")
+  createdAt    DateTime @default(now())
+
+  @@index([leadId])
+  @@index([signalType])
+}
+
+// ── Outreach ──
+
+model OutreachAgent {
+  id               String   @id @default(cuid())
+  /// Clerk user ID
+  ownerId          String
+  name             String
+  agencyDescription String?
+  targetIndustries String?
+  tone             String   @default("professional")
+  differentiators  String?
+  systemPrompt     String?
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+
+  sequences OutreachSequence[]
+
+  @@index([ownerId])
+}
+
+model OutreachSequence {
+  id            String   @id @default(cuid())
+  agentId       String
+  agent         OutreachAgent @relation(fields: [agentId], references: [id], onDelete: Cascade)
+  name          String
+  autoMode      Boolean  @default(false)
+  maxDailyEmails Int     @default(50)
+  /// active, paused, completed
+  status        String   @default("active")
+  ownerId       String
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  steps    SequenceStep[]
+  messages OutreachMessage[]
+
+  @@index([agentId])
+  @@index([ownerId])
+}
+
+model SequenceStep {
+  id            String   @id @default(cuid())
+  sequenceId    String
+  sequence      OutreachSequence @relation(fields: [sequenceId], references: [id], onDelete: Cascade)
+  order         Int
+  /// Channel: email, linkedin, sms, twitter
+  channel       String
+  delayDays     Int      @default(0)
+  promptOverride String?
+  createdAt     DateTime @default(now())
+
+  messages OutreachMessage[]
+
+  @@index([sequenceId])
+}
+
+model OutreachMessage {
+  id          String   @id @default(cuid())
+  leadId      String
+  lead        Lead     @relation(fields: [leadId], references: [id], onDelete: Cascade)
+  sequenceId  String?
+  sequence    OutreachSequence? @relation(fields: [sequenceId], references: [id], onDelete: SetNull)
+  stepId      String?
+  step        SequenceStep? @relation(fields: [stepId], references: [id], onDelete: SetNull)
+  /// Channel: email, linkedin, sms, twitter
+  channel     String
+  subject     String?
+  content     String
+  /// draft, approved, queued, sent, failed, replied
+  status      String   @default("draft")
+  sentAt      DateTime?
+  openedAt    DateTime?
+  clickedAt   DateTime?
+  repliedAt   DateTime?
+  modelUsed   String?
+  ownerId     String
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([leadId])
+  @@index([sequenceId])
+  @@index([ownerId])
+  @@index([status])
+  @@index([channel])
+}
+
+model Unsubscribe {
+  id             String   @id @default(cuid())
+  email          String
+  token          String   @unique
+  leadId         String?
+  /// Source: link, reply, manual
+  source         String   @default("link")
+  unsubscribedAt DateTime @default(now())
+
+  @@index([email])
+  @@index([token])
+}
+
+// ── Lead Intelligence ──
+
+model LeadScore {
+  id          String   @id @default(cuid())
+  leadId      String   @unique
+  score       Int      // 0-100
+  tier        String   // hot, warm, cold, dead
+  reasoning   String?
+  breakdown   Json?    // { sourceQuality, automationSignal, businessFit, ... }
+  aiAnalysis  Json?    // deep analysis from Claude
+  scoredAt    DateTime @default(now())
+
+  @@index([score])
+  @@index([tier])
+}
+
+model ReplyClassification {
+  id               String   @id @default(cuid())
+  messageId        String
+  category         String   // interested, objection, not_interested, etc.
+  sentiment        String   // positive, neutral, negative
+  summary          String?
+  objectionType    String?
+  urgency          String?
+  followUpDraftId  String?  // ID of the auto-generated follow-up message
+  replyContent     String
+  classifiedAt     DateTime @default(now())
+
+  @@index([messageId])
+  @@index([category])
+}
+
+model TriggerEvent {
+  id          String   @id @default(cuid())
+  leadId      String?
+  /// Event type: new_job_posting, bad_review, website_down, funding_round
+  eventType   String
+  description String
+  data        Json?
+  /// Whether outreach was auto-triggered
+  triggered   Boolean  @default(false)
+  messageId   String?  // ID of the auto-created outreach message
+  ownerId     String
+  createdAt   DateTime @default(now())
+
+  @@index([ownerId])
+  @@index([eventType])
+  @@index([leadId])
+}
+
+// ── MarkedUp Integration ──
+
+model MarkedUpConnection {
+  id           String   @id @default(cuid())
+  /// Clerk org ID — one connection per team
+  orgId        String   @unique
+  /// MarkedUp TEAM workspace ID (shared space where all stats go)
+  workspaceId  String
+  /// Clerk user ID of who set up the connection
+  configuredBy String
+  autoSync     Boolean  @default(false)
+  autoAnalyze  Boolean  @default(false)
+  /// Sync frequency: realtime, hourly, daily
+  syncFrequency String  @default("hourly")
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  @@index([orgId])
+}
+
+model TeamMember {
+  id        String  @id @default(cuid())
+  /// Clerk user ID
+  userId    String  @unique
+  /// Clerk org ID
+  orgId     String
+  /// Display name for reports
+  name      String
+  /// Role in the team
+  role      String  @default("member")
+  createdAt DateTime @default(now())
+
+  @@index([orgId])
+}
+
+// ── Workspaces (Origami-style lead organization) ──
+
+model Workspace {
+  id          String   @id @default(cuid())
+  name        String
+  description String?
+  ownerId     String
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  leads        WorkspaceLead[]
+  searchAgents SearchAgent[]
+
+  @@index([ownerId])
+}
+
+model WorkspaceLead {
+  id          String    @id @default(cuid())
+  workspaceId String
+  workspace   Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  leadId      String
+  lead        Lead      @relation(fields: [leadId], references: [id], onDelete: Cascade)
+  addedAt     DateTime  @default(now())
+
+  @@unique([workspaceId, leadId])
+  @@index([workspaceId])
+  @@index([leadId])
+}
+
+// ── AI Search Agent (Origami-style conversational search) ──
+
+model SearchAgent {
+  id           String    @id @default(cuid())
+  ownerId      String
+  /// The natural language query from the user
+  query        String
+  /// running, completed, failed
+  status       String    @default("running")
+  /// JSON array of sources being searched: ["gmaps", "linkedin", "yelp", "bbb", "indeed"]
+  sources      String    @default("[]")
+  /// JSON: per-source progress { gmaps: { status, found }, ... }
+  sourceProgress String  @default("{}")
+  resultsCount Int       @default(0)
+  /// Auto-created workspace for results
+  workspaceId  String?
+  workspace    Workspace? @relation(fields: [workspaceId], references: [id], onDelete: SetNull)
+  createdAt    DateTime  @default(now())
+  completedAt  DateTime?
+
+  @@index([ownerId])
+  @@index([status])
+}
+
+// ── Email Deliverability ──
+
+model ConnectedInbox {
+  id            String   @id @default(cuid())
+  ownerId       String
+  email         String
+  /// imap, gmail_api, outlook_api
+  provider      String   @default("imap")
+  /// IMAP/SMTP credentials (encrypted JSON)
+  credentials   String
+  /// active, warming, paused, error
+  status        String   @default("active")
+  warmupEnabled Boolean  @default(true)
+  dailySendLimit Int     @default(30)
+  sentToday     Int      @default(0)
+  reputationScore Int    @default(50)
+  /// Domain auth JSON: { spf, dkim, dmarc }
+  domainAuth    String?
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  @@index([ownerId])
+  @@unique([ownerId, email])
+}
+
+// ── A/B Testing ──
+
+model MessageVariant {
+  id            String   @id @default(cuid())
+  stepId        String?
+  variant       String
+  subject       String?
+  content       String
+  sendCount     Int      @default(0)
+  openCount     Int      @default(0)
+  replyCount    Int      @default(0)
+  meetingCount  Int      @default(0)
+  isWinner      Boolean  @default(false)
+  createdAt     DateTime @default(now())
+
+  @@index([stepId])
+}
+
+// ── Intent Signals ──
+
+model IntentSignal {
+  id          String   @id @default(cuid())
+  leadId      String?
+  ownerId     String
+  signalType  String
+  title       String
+  description String
+  severity    String   @default("medium")
+  data        Json?
+  triggered   Boolean  @default(false)
+  dismissed   Boolean  @default(false)
+  detectedAt  DateTime @default(now())
+
+  @@index([ownerId])
+  @@index([leadId])
+  @@index([signalType])
+  @@index([detectedAt])
+}
+
+// ── Autopilot ──
+
+model AutopilotConfig {
+  id              String   @id @default(cuid())
+  ownerId         String   @unique
+  enabled         Boolean  @default(false)
+  scrapeConfig    String?
+  maxLeadsPerDay  Int      @default(50)
+  maxEmailsPerDay Int      @default(100)
+  autoSendThreshold Int    @default(70)
+  approvalThreshold Int    @default(90)
+  calendarLink    String?
+  channels        String   @default("[\"email\"]")
+  pauseOnNegative Boolean  @default(true)
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+}
+
+model AutopilotLog {
+  id          String   @id @default(cuid())
+  ownerId     String
+  action      String
+  summary     String
+  leadId      String?
+  messageId   String?
+  data        Json?
+  createdAt   DateTime @default(now())
+
+  @@index([ownerId])
+  @@index([action])
+  @@index([createdAt])
+}
+
+// ── CRM Integrations ──
+
+model CRMConnection {
+  id            String   @id @default(cuid())
+  ownerId       String
+  provider      String
+  accessToken   String
+  refreshToken  String?
+  expiresAt     DateTime?
+  fieldMapping  String?
+  status        String   @default("active")
+  lastSyncAt    DateTime?
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  @@unique([ownerId, provider])
+  @@index([ownerId])
+}
+
+model WebhookSubscription {
+  id          String   @id @default(cuid())
+  ownerId     String
+  url         String
+  events      String
+  secret      String
+  status      String   @default("active")
+  createdAt   DateTime @default(now())
+
+  @@index([ownerId])
+}

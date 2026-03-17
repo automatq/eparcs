@@ -1,0 +1,186 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Scraped - Side Panel</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+      background: #000;
+      color: rgba(255, 255, 255, 0.87);
+      padding: 16px;
+      min-height: 100vh;
+    }
+    .header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 16px;
+      padding-bottom: 12px;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+    }
+    .header h1 { font-size: 16px; font-weight: 600; }
+    .tabs {
+      display: flex;
+      gap: 4px;
+      margin-bottom: 16px;
+      background: #171717;
+      padding: 4px;
+      border-radius: 10px;
+    }
+    .tab {
+      flex: 1;
+      padding: 8px;
+      border: none;
+      border-radius: 8px;
+      font-size: 12px;
+      font-weight: 500;
+      cursor: pointer;
+      background: transparent;
+      color: rgba(255, 255, 255, 0.64);
+      transition: all 0.15s;
+    }
+    .tab.active {
+      background: rgba(255, 255, 255, 0.87);
+      color: #0a0a0a;
+    }
+    .section { margin-bottom: 16px; }
+    .section-title {
+      font-size: 11px;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      color: rgba(255, 255, 255, 0.64);
+      margin-bottom: 8px;
+    }
+    .card {
+      background: #0a0a0a;
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      border-radius: 12px;
+      padding: 12px;
+      margin-bottom: 8px;
+    }
+    .field { margin-bottom: 8px; }
+    .field-label {
+      font-size: 11px;
+      color: rgba(255, 255, 255, 0.5);
+      margin-bottom: 2px;
+    }
+    .field-value { font-size: 13px; }
+    .draft-area {
+      background: #0a0a0a;
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      border-radius: 12px;
+      padding: 12px;
+      min-height: 120px;
+      font-size: 13px;
+      color: rgba(255, 255, 255, 0.87);
+      line-height: 1.6;
+    }
+    textarea {
+      width: 100%;
+      background: transparent;
+      border: none;
+      color: rgba(255, 255, 255, 0.87);
+      font-size: 13px;
+      font-family: inherit;
+      resize: vertical;
+      min-height: 120px;
+      outline: none;
+    }
+    .btn {
+      width: 100%;
+      padding: 10px;
+      border: none;
+      border-radius: 8px;
+      font-size: 13px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: opacity 0.15s;
+      margin-bottom: 6px;
+    }
+    .btn:hover { opacity: 0.9; }
+    .btn-primary { background: rgba(255,255,255,0.87); color: #0a0a0a; }
+    .btn-secondary { background: #171717; color: rgba(255,255,255,0.87); }
+    .btn-gold { background: #d4af37; color: #000; }
+    .channel-select {
+      display: flex;
+      gap: 4px;
+      margin-bottom: 12px;
+    }
+    .channel-btn {
+      flex: 1;
+      padding: 6px;
+      border: 1px solid rgba(255,255,255,0.1);
+      border-radius: 8px;
+      background: transparent;
+      color: rgba(255,255,255,0.64);
+      font-size: 11px;
+      cursor: pointer;
+      transition: all 0.15s;
+    }
+    .channel-btn.active {
+      border-color: #d4af37;
+      color: #d4af37;
+    }
+    .loading {
+      text-align: center;
+      padding: 24px;
+      color: rgba(255,255,255,0.5);
+    }
+    .spinner {
+      display: inline-block;
+      width: 20px;
+      height: 20px;
+      border: 2px solid rgba(255,255,255,0.2);
+      border-top-color: #d4af37;
+      border-radius: 50%;
+      animation: spin 0.8s linear infinite;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+  </style>
+</head>
+<body>
+  <div class="header">
+    <h1>Scraped</h1>
+  </div>
+
+  <div class="tabs">
+    <button class="tab active" data-tab="lead">Lead</button>
+    <button class="tab" data-tab="outreach">Outreach</button>
+  </div>
+
+  <div id="lead-tab">
+    <div id="lead-content">
+      <div class="loading">Browse a page to extract lead data</div>
+    </div>
+  </div>
+
+  <div id="outreach-tab" style="display:none">
+    <div class="section">
+      <div class="section-title">Channel</div>
+      <div class="channel-select">
+        <button class="channel-btn active" data-channel="email">Email</button>
+        <button class="channel-btn" data-channel="linkedin">LinkedIn</button>
+        <button class="channel-btn" data-channel="sms">SMS</button>
+        <button class="channel-btn" data-channel="twitter">Twitter</button>
+      </div>
+    </div>
+
+    <div class="section">
+      <div class="section-title">AI Draft</div>
+      <div class="draft-area" id="draft-content">
+        <div class="loading">Save a lead first, then generate an AI draft</div>
+      </div>
+    </div>
+
+    <button class="btn btn-gold" id="generate-btn">Generate AI Draft</button>
+    <button class="btn btn-primary" id="copy-btn" style="display:none">Copy to Clipboard</button>
+    <button class="btn btn-secondary" id="approve-btn" style="display:none">Approve & Send</button>
+  </div>
+
+  <script src="sidepanel.js"></script>
+</body>
+</html>
