@@ -22,6 +22,38 @@ export default async function SettingsPage() {
         </p>
       </div>
 
+      {/* Chrome Extension */}
+      <Card>
+        <CardHeader>
+          <CardTitle>Chrome Extension</CardTitle>
+          <CardDescription>
+            Install the Scraped browser extension to capture leads from LinkedIn, Google Maps, and job boards
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <div className="flex items-center justify-between">
+            <div className="space-y-1">
+              <p className="text-sm">
+                The extension auto-detects when you&apos;re on LinkedIn, Google Maps, or Indeed and lets you save leads directly.
+              </p>
+              <ol className="text-xs text-muted-foreground list-decimal pl-4 space-y-0.5 mt-2">
+                <li>Download the extension zip file</li>
+                <li>Open <code className="bg-muted px-1 rounded">chrome://extensions</code> in Chrome</li>
+                <li>Enable &quot;Developer mode&quot; (top right toggle)</li>
+                <li>Drag and drop the zip file, or click &quot;Load unpacked&quot; and select the extracted folder</li>
+              </ol>
+            </div>
+          </div>
+          <a
+            href="/scraped-extension.zip"
+            download
+            className="mt-4 inline-flex h-9 items-center justify-center rounded-lg bg-primary px-4 text-sm font-medium text-primary-foreground transition-all hover:opacity-90 active:scale-[0.98]"
+          >
+            Download Extension (.zip)
+          </a>
+        </CardContent>
+      </Card>
+
       <Card>
         <CardHeader>
           <CardTitle>Outreach Agent</CardTitle>
