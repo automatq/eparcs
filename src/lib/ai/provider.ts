@@ -31,7 +31,7 @@ export async function aiComplete(params: {
   messages.push({ role: "user", content: params.prompt });
 
   const response = await openai.chat.completions.create({
-    model: params.model ?? "o4-mini",
+    model: params.model ?? "gpt-4.1",
     messages,
     max_completion_tokens: params.maxTokens ?? 1024,
   });

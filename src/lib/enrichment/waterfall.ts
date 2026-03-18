@@ -25,6 +25,16 @@ import {
   guessDomain,
 } from "./pattern-generator";
 import { verifyEmail, verifyEmailBatch } from "./smtp-verifier";
+import { promises as dns } from "dns";
+
+async function getMxHost(domain: string): Promise<string | null> {
+  try {
+    const records = await dns.resolveMx(domain);
+    if (!records.length) return null;
+    records.sort((a, b) => a.priority - b.priority);
+    return records[0].exchange;
+  } catch { return null; }
+}
 
 export interface WaterfallEmailResult {
   email: string;
@@ -166,7 +176,7 @@ export async function waterfallEmailEnrichment(params: {
             confidence: 90,
             source: "pattern-verified",
             verified: true,
-            method: `Pattern "${v.pattern}" SMTP verified`,
+            method: `Pattern "${v.pattern}" verified`,
             personName: params.name,
             personTitle: null,
           });
@@ -180,19 +190,41 @@ export async function waterfallEmailEnrichment(params: {
             personName: params.name,
             personTitle: null,
           });
+        } else if (v.exists === null && v.mxHost) {
+          // Domain has valid MX records but verification was inconclusive
+          // (SMTP blocked on cloud). Use pattern frequency as confidence.
+          const patternConfidence: Record<string, number> = {
+            "first.last": 75, "first": 70, "firstlast": 65,
+            "flast": 60, "first_last": 55, "first-last": 55,
+            "last.first": 50, "f.last": 50, "firstl": 45,
+          };
+          const conf = patternConfidence[v.pattern] ?? 40;
+          add({
+            email: v.email,
+            confidence: conf,
+            source: "pattern-likely",
+            verified: false,
+            method: `Pattern "${v.pattern}" (MX valid, ${conf}% likely)`,
+            personName: params.name,
+            personTitle: null,
+          });
         }
       }
     } catch {
-      // Add top unverified patterns as fallback
+      // Add top patterns as fallback with MX check
       if (parsed && parsed.lastName && domain) {
         const candidates = generateEmailCandidates(parsed.firstName, parsed.lastName, domain);
+        const mxHost = await getMxHost(domain).catch(() => null);
+        const conf = mxHost ? 60 : 30; // Higher confidence if domain can receive email
         for (const c of candidates.slice(0, 3)) {
           add({
             email: c.email,
-            confidence: 35,
-            source: "pattern-unverified",
+            confidence: conf,
+            source: mxHost ? "pattern-likely" : "pattern-unverified",
             verified: false,
-            method: `Pattern "${c.pattern}" (SMTP failed)`,
+            method: mxHost
+              ? `Pattern "${c.pattern}" (MX valid: ${mxHost})`
+              : `Pattern "${c.pattern}" (unverified)`,
             personName: params.name,
             personTitle: null,
           });
