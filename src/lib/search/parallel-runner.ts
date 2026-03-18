@@ -19,8 +19,15 @@ import {
 } from "@/lib/scraper/linkedin-agent";
 import { scrapeYelp } from "@/lib/scrapers/yelp";
 import { scrapeBBB } from "@/lib/scrapers/bbb";
-import { deduplicateLeads } from "./dedup";
-import { batchScoreFit } from "./fit-scorer";
+// Inline simple dedup (removed separate module)
+function deduplicateLeads(candidates: any[]): any[] {
+  const seen = new Map<string, any>();
+  for (const c of candidates) {
+    const key = c.phone?.replace(/\D/g, "").slice(-10) ?? c.name?.toLowerCase();
+    if (key && !seen.has(key)) seen.set(key, c);
+  }
+  return Array.from(seen.values());
+}
 import { enrichLead } from "@/lib/enrichment";
 import type { ParsedSearch } from "./query-parser";
 
@@ -355,39 +362,6 @@ export async function runParallelSearch(params: RunnerParams): Promise<void> {
           });
       }
     }
-
-    // Score fit for all saved leads (batch)
-    try {
-      const leadsForScoring = await db.lead.findMany({
-        where: { id: { in: savedLeadIds } },
-        include: { businessProfile: true },
-      });
-
-      const scoringData = leadsForScoring.map((l) => ({
-        id: l.id,
-        name: l.name,
-        title: l.title,
-        company: l.company,
-        industry: l.industry,
-        location: l.location,
-        source: l.source,
-        rating: l.businessProfile?.rating ?? null,
-        reviewCount: l.businessProfile?.reviewCount ?? null,
-        category: l.businessProfile?.category ?? null,
-        website: l.businessProfile?.website ?? null,
-      }));
-
-      const scores = await batchScoreFit(query, scoringData);
-
-      for (const [leadId, score] of scores) {
-        await db.lead
-          .update({
-            where: { id: leadId },
-            data: { fitScore: score.score, fitScoreReason: score.reason },
-          })
-          .catch(() => {});
-      }
-    } catch {}
 
     // Update search agent as complete
     await db.searchAgent.update({

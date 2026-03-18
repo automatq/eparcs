@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { requireAuth } from "@/lib/auth";
-import { generateDraft } from "@/lib/ai/claude";
 import { generateDraftOpenAI } from "@/lib/ai/openai";
 
 export async function POST(request: NextRequest) {
@@ -69,17 +68,11 @@ export async function POST(request: NextRequest) {
     agentConfig,
   };
 
-  // Route to the selected AI provider (default: OpenAI)
-  let draft;
-  if (provider === "claude" && process.env.ANTHROPIC_API_KEY) {
-    draft = await generateDraft(draftParams);
-  } else {
-    // Default to OpenAI
-    draft = await generateDraftOpenAI({
-      ...draftParams,
-      model: model ?? "o4-mini",
-    });
-  }
+  // Generate draft with OpenAI
+  const draft = await generateDraftOpenAI({
+    ...draftParams,
+    model: model ?? "gpt-4.1",
+  });
 
   // If we have a leadId, save the draft as an OutreachMessage
   if (leadId) {

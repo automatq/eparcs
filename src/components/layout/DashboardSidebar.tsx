@@ -6,27 +6,19 @@ import { cn } from "@/lib/utils";
 import {
   Users,
   Send,
-  Kanban,
   Settings,
   Search,
-  Bot,
-  Linkedin,
   Sparkles,
-  Inbox,
   BarChart3,
   Zap,
 } from "lucide-react";
 
 const navItems = [
-  { href: "/search", label: "AI Search", icon: Sparkles },
+  { href: "/search", label: "Search", icon: Sparkles },
   { href: "/leads", label: "Leads", icon: Users },
-  { href: "/inbox", label: "Inbox", icon: Inbox },
-  { href: "/scraper", label: "Scraper", icon: Bot },
-  { href: "/campaigns", label: "Campaigns", icon: Linkedin },
   { href: "/outreach", label: "Outreach", icon: Send },
-  { href: "/signals", label: "Signals", icon: Zap },
-  { href: "/pipeline", label: "Pipeline", icon: Kanban },
   { href: "/analytics", label: "Analytics", icon: BarChart3 },
+  { href: "/signals", label: "Signals", icon: Zap },
   { href: "/settings", label: "Settings", icon: Settings },
 ];
 

@@ -93,11 +93,18 @@ export default function SearchPage() {
   const inputRef = useRef<HTMLInputElement>(null);
   const pollRef = useRef<NodeJS.Timeout | null>(null);
 
-  // Load templates and recent searches
+  // Load recent searches + inline templates
   useEffect(() => {
-    import("@/lib/search/templates").then((m) => {
-      setTemplates(m.SEARCH_TEMPLATES);
-    });
+    setTemplates([
+      { id: "hvac", category: "Local Services", name: "HVAC companies with bad reviews", description: "Prime for service improvement", query: "Find HVAC companies with less than 4 stars on Google Maps in [location]", icon: "Wrench" },
+      { id: "dentists", category: "Local Services", name: "Dentists without websites", description: "Easy web design upsell", query: "Find dental offices with no website on Google Maps in [location]", icon: "Stethoscope" },
+      { id: "restaurants", category: "Local Services", name: "Restaurants needing online ordering", description: "Great reviews but no website", query: "Find restaurants with 50+ reviews but no website in [location]", icon: "UtensilsCrossed" },
+      { id: "hiring", category: "Growth Signals", name: "Companies actively hiring", description: "Likely need automation", query: "Find companies posting data entry or customer support jobs in [industry] in [location]", icon: "TrendingUp" },
+      { id: "no-tech", category: "Growth Signals", name: "Great reviews, no tech", description: "Haven't invested in technology yet", query: "Find businesses with 4.5+ stars and 100+ reviews but no website in [location]", icon: "Star" },
+      { id: "founders", category: "SaaS & Tech", name: "Startup founders", description: "Decision makers at early-stage companies", query: "Find founders and CEOs at startups with 10-50 employees in [industry]", icon: "Rocket" },
+      { id: "marketing", category: "Agency", name: "Businesses needing marketing", description: "Mediocre reviews, few customers", query: "Find local businesses with 3-4 star ratings and fewer than 20 reviews in [location]", icon: "Megaphone" },
+      { id: "medical", category: "Healthcare", name: "Medical practices needing patients", description: "Low review counts", query: "Find medical offices and clinics with fewer than 30 reviews in [location]", icon: "Heart" },
+    ]);
     fetch("/api/search")
       .then((r) => r.json())
       .then(setRecentSearches)
@@ -193,11 +200,16 @@ export default function SearchPage() {
   return (
     <div className="space-y-6">
       {/* Header */}
-      <div>
-        <h1 className="text-xl font-semibold tracking-tight">AI Search</h1>
-        <p className="text-[13px] text-muted-foreground mt-1">
-          Describe your ideal customer and we'll search multiple sources simultaneously
-        </p>
+      <div className="flex items-center justify-between">
+        <div>
+          <h1 className="text-xl font-semibold tracking-tight">Search</h1>
+          <p className="text-[13px] text-muted-foreground mt-1">
+            Describe your ideal customer or use manual scraper
+          </p>
+        </div>
+        <a href="/scraper" className="text-xs text-muted-foreground hover:text-foreground transition-colors">
+          Manual mode →
+        </a>
       </div>
 
       {/* Search Bar */}

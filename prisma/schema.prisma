@@ -340,39 +340,6 @@ model LeadScore {
   @@index([tier])
 }
 
-model ReplyClassification {
-  id               String   @id @default(cuid())
-  messageId        String
-  category         String   // interested, objection, not_interested, etc.
-  sentiment        String   // positive, neutral, negative
-  summary          String?
-  objectionType    String?
-  urgency          String?
-  followUpDraftId  String?  // ID of the auto-generated follow-up message
-  replyContent     String
-  classifiedAt     DateTime @default(now())
-
-  @@index([messageId])
-  @@index([category])
-}
-
-model TriggerEvent {
-  id          String   @id @default(cuid())
-  leadId      String?
-  /// Event type: new_job_posting, bad_review, website_down, funding_round
-  eventType   String
-  description String
-  data        Json?
-  /// Whether outreach was auto-triggered
-  triggered   Boolean  @default(false)
-  messageId   String?  // ID of the auto-created outreach message
-  ownerId     String
-  createdAt   DateTime @default(now())
-
-  @@index([ownerId])
-  @@index([eventType])
-  @@index([leadId])
-}
 
 // ── MarkedUp Integration ──
 
@@ -462,48 +429,6 @@ model SearchAgent {
   @@index([status])
 }
 
-// ── Email Deliverability ──
-
-model ConnectedInbox {
-  id            String   @id @default(cuid())
-  ownerId       String
-  email         String
-  /// imap, gmail_api, outlook_api
-  provider      String   @default("imap")
-  /// IMAP/SMTP credentials (encrypted JSON)
-  credentials   String
-  /// active, warming, paused, error
-  status        String   @default("active")
-  warmupEnabled Boolean  @default(true)
-  dailySendLimit Int     @default(30)
-  sentToday     Int      @default(0)
-  reputationScore Int    @default(50)
-  /// Domain auth JSON: { spf, dkim, dmarc }
-  domainAuth    String?
-  createdAt     DateTime @default(now())
-  updatedAt     DateTime @updatedAt
-
-  @@index([ownerId])
-  @@unique([ownerId, email])
-}
-
-// ── A/B Testing ──
-
-model MessageVariant {
-  id            String   @id @default(cuid())
-  stepId        String?
-  variant       String
-  subject       String?
-  content       String
-  sendCount     Int      @default(0)
-  openCount     Int      @default(0)
-  replyCount    Int      @default(0)
-  meetingCount  Int      @default(0)
-  isWinner      Boolean  @default(false)
-  createdAt     DateTime @default(now())
-
-  @@index([stepId])
-}
 
 // ── Intent Signals ──
 
@@ -526,66 +451,4 @@ model IntentSignal {
   @@index([detectedAt])
 }
 
-// ── Autopilot ──
 
-model AutopilotConfig {
-  id              String   @id @default(cuid())
-  ownerId         String   @unique
-  enabled         Boolean  @default(false)
-  scrapeConfig    String?
-  maxLeadsPerDay  Int      @default(50)
-  maxEmailsPerDay Int      @default(100)
-  autoSendThreshold Int    @default(70)
-  approvalThreshold Int    @default(90)
-  calendarLink    String?
-  channels        String   @default("[\"email\"]")
-  pauseOnNegative Boolean  @default(true)
-  createdAt       DateTime @default(now())
-  updatedAt       DateTime @updatedAt
-}
-
-model AutopilotLog {
-  id          String   @id @default(cuid())
-  ownerId     String
-  action      String
-  summary     String
-  leadId      String?
-  messageId   String?
-  data        Json?
-  createdAt   DateTime @default(now())
-
-  @@index([ownerId])
-  @@index([action])
-  @@index([createdAt])
-}
-
-// ── CRM Integrations ──
-
-model CRMConnection {
-  id            String   @id @default(cuid())
-  ownerId       String
-  provider      String
-  accessToken   String
-  refreshToken  String?
-  expiresAt     DateTime?
-  fieldMapping  String?
-  status        String   @default("active")
-  lastSyncAt    DateTime?
-  createdAt     DateTime @default(now())
-  updatedAt     DateTime @updatedAt
-
-  @@unique([ownerId, provider])
-  @@index([ownerId])
-}
-
-model WebhookSubscription {
-  id          String   @id @default(cuid())
-  ownerId     String
-  url         String
-  events      String
-  secret      String
-  status      String   @default("active")
-  createdAt   DateTime @default(now())
-
-  @@index([ownerId])
-}
