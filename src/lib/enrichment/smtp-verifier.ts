@@ -258,18 +258,22 @@ export async function verifyEmailBatch(
     }
   }
 
-  // Try to verify the top 3 most likely patterns
-  // (first.last@, first@, firstlast@ are the most common)
-  for (let i = 0; i < Math.min(candidates.length, 4); i++) {
-    const candidate = candidates[i];
-    const result = await verifyEmail(candidate.email);
-    results.push({ ...result, pattern: candidate.pattern });
+  // Verify top 4 patterns IN PARALLEL (not sequential)
+  const toVerify = candidates.slice(0, 4);
+  const verifications = await Promise.allSettled(
+    toVerify.map(async (candidate) => {
+      const result = await verifyEmail(candidate.email);
+      return { ...result, pattern: candidate.pattern };
+    })
+  );
 
-    // If verified, stop
-    if (result.exists === true) break;
+  for (const v of verifications) {
+    if (v.status === "fulfilled") results.push(v.value);
+  }
 
-    // If first pattern returns "no MX" or definitive false, domain doesn't work — stop
-    if (result.exists === false && result.error?.includes("No MX")) break;
+  // If first result shows no MX records, domain can't receive email
+  if (results.length > 0 && results[0].exists === false && results[0].error?.includes("No MX")) {
+    return results;
   }
 
   // If no verification succeeded (SMTP blocked + no Hunter), add remaining patterns

@@ -133,13 +133,12 @@ export async function runParallelSearch(params: RunnerParams): Promise<void> {
           }
         );
 
-        // Poll until complete
+        // Poll until complete or timeout
+        const startTime = Date.now();
         while (true) {
           await new Promise((r) => setTimeout(r, 3000));
-          // LinkedIn jobs are fast — wait max 60s
           if (results.length > 0) break;
-          const elapsed = Date.now() - Date.now(); // placeholder
-          break; // LinkedIn scrape is synchronous in our implementation
+          if (Date.now() - startTime > 60000) break; // 60s timeout
         }
 
         await updateProgress("linkedin", "complete", results.length);

@@ -126,7 +126,7 @@ export default function SearchPage() {
           setSearching(false);
         }
       } catch {}
-    }, 2000);
+    }, 1500); // Poll faster for snappier UX
 
     return () => {
       if (pollRef.current) clearInterval(pollRef.current);
@@ -239,6 +239,30 @@ export default function SearchPage() {
 
       {/* Source Progress (visible during search) */}
       {Object.keys(sourceProgress).length > 0 && (
+        <div className="space-y-3">
+          {/* Progress bar */}
+          {searching && (() => {
+            const sources = Object.values(sourceProgress);
+            const done = sources.filter((s: any) => s.status === "complete").length;
+            const total = sources.length;
+            const pct = total > 0 ? (done / total) * 100 : 0;
+            return (
+              <div className="space-y-1.5">
+                <div className="flex justify-between text-[11px]">
+                  <span className="text-muted-foreground">{done}/{total} sources complete</span>
+                  <span className="text-muted-foreground">
+                    {results.length} leads found
+                  </span>
+                </div>
+                <div className="h-2 bg-muted rounded-full overflow-hidden">
+                  <div
+                    className="h-full bg-primary rounded-full transition-all duration-700 ease-out"
+                    style={{ width: `${Math.max(pct, status === "running" ? 5 : 0)}%` }}
+                  />
+                </div>
+              </div>
+            );
+          })()}
         <div className="flex flex-wrap gap-3">
           {Object.entries(sourceProgress).map(([source, progress]) => (
             <div
@@ -264,6 +288,7 @@ export default function SearchPage() {
               )}
             </div>
           ))}
+        </div>
         </div>
       )}
 

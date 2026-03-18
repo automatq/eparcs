@@ -85,13 +85,17 @@ export async function searchForEmails(
     `"${name}" "${company}" contact`,
   ].filter(Boolean) as string[];
 
-  for (const query of queries) {
-    const results = await googleSearch(query);
+  // Run all queries in parallel — no rate limit needed for 2-3 requests
+  const allResults = await Promise.allSettled(
+    queries.map((query) => googleSearch(query).then((results) => ({ query, results })))
+  );
 
-    for (const result of results) {
-      const text = `${result.title} ${result.snippet}`;
+  for (const result of allResults) {
+    if (result.status !== "fulfilled") continue;
+    const { query, results } = result.value;
+    for (const r of results) {
+      const text = `${r.title} ${r.snippet}`;
       const found = text.match(EMAIL_REGEX) ?? [];
-
       for (const email of found) {
         const lower = email.toLowerCase();
         if (!seen.has(lower) && !lower.includes("example.com") && !lower.includes("sentry.io")) {
@@ -100,9 +104,6 @@ export async function searchForEmails(
         }
       }
     }
-
-    // Rate limit between searches
-    await new Promise((r) => setTimeout(r, 2000));
   }
 
   return emails;
